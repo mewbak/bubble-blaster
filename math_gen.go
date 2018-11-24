@@ -14,6 +14,7 @@ const (
 	subtract
 	multiply
 	divide
+	modulo
 	opCount
 )
 
@@ -27,6 +28,8 @@ func (op mathOp) String() string {
 		return "*"
 	case divide:
 		return "/"
+	case modulo:
+		return "%"
 	default:
 		panic("invalid mathOp")
 	}
@@ -79,6 +82,10 @@ func (g mathGenerator) generate(rand func() int) assignment {
 			b--
 		}
 		a = result * b
+	case modulo:
+		a = rand() % g.max
+		b = 1 + rand()%g.max
+		result = a % b
 	}
 	return assignment{
 		question: fmt.Sprintf("%d %s %d", a, op, b),

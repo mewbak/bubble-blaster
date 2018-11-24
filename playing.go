@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/faiface/pixel"
-	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
 )
@@ -70,6 +69,7 @@ type playingState struct {
 	uhOh           *sound
 	shot           *sound
 	sprites        map[string]*pixel.Sprite
+	background     *pixel.Sprite
 	bloodParticle  *pixel.Sprite
 	bulletLeft     *pixel.Sprite
 	bulletRight    *pixel.Sprite
@@ -125,13 +125,14 @@ func (s *playingState) enter(state) {
 				}
 			}
 		}
+		s.background = loadPNG(file("background.png"))
 		s.bloodParticle = loadPNG(file("blood particle.png"))
 		s.bulletLeft = loadPNG(file("bullet left.png"))
 		s.bulletRight = loadPNG(file("bullet right.png"))
 		s.deadHead = loadPNG(file("dead head.png"))
 		s.question = text.New(pixel.V(0, 0), font)
 		s.scoreText = text.New(pixel.V(0, 0), font)
-		s.scoreText.Color = pixel.RGB(1, 0, 0)
+		s.scoreText.Color = pixel.RGB(1, 1, 1)
 		s.number = text.New(pixel.V(0, 0), font)
 	}
 	s.playerX = (windowW - playerW) / 2
@@ -140,7 +141,7 @@ func (s *playingState) enter(state) {
 	s.playerWalkFrame = 0
 	s.playerWalkTime = 0
 	s.generator = mathGenerator{
-		ops: []mathOp{add, subtract, add, subtract, multiply, divide},
+		ops: []mathOp{add, subtract, add, subtract, multiply, divide, modulo},
 		max: 9,
 	}
 	s.assignment = s.generator.generate(rand.Int)
@@ -381,36 +382,46 @@ func (s *playingState) update(window *pixelgl.Window) state {
 		}
 	}
 
+	drawAt := func(s *pixel.Sprite, x, y int) {
+		b := s.Picture().Bounds()
+		s.Draw(window, pixel.IM.
+			Moved(pixel.V(float64(x), float64(windowH-y)-b.H())).
+			Moved(b.Center()))
+	}
+
 	// render
 	// background
 	{
-		const h = 3
-		im := imdraw.New(nil)
-		for y := 0; y < windowH; y += h {
-			im.Color = pixel.RGB(0, 0, float64(y+50)/windowH)
-			im.Push(
-				pixel.V(0, float64(windowH-y-h)),
-				pixel.V(windowW, float64(windowH-y)),
-			)
-			im.Rectangle(0)
-		}
-		const groundH = 170
-		groundCenter := pixel.RGB(135/255.0, 33/255.0, 2/255.0)
-		groundEdge := pixel.RGB(95/255.0, 23/255.0, 1/255.0)
-		for y := windowH - groundH; y < windowH; y += h {
-			centerWeight := 1.0 - float64(abs(y-(windowH-groundH/2)))/80.0
-			im.Color = pixel.RGB(
-				groundCenter.R*centerWeight+groundEdge.R*(1-centerWeight),
-				groundCenter.G*centerWeight+groundEdge.G*(1-centerWeight),
-				groundCenter.B*centerWeight+groundEdge.B*(1-centerWeight),
-			)
-			im.Push(
-				pixel.V(0, float64(windowH-y-h)),
-				pixel.V(windowW, float64(windowH-y)),
-			)
-			im.Rectangle(0)
-		}
-		im.Draw(window)
+		drawAt(s.background, 0, 0)
+		/*
+			const h = 3
+			im := imdraw.New(nil)
+			for y := 0; y < windowH; y += h {
+				im.Color = pixel.RGB(0, 0, float64(y+50)/windowH)
+				im.Push(
+					pixel.V(0, float64(windowH-y-h)),
+					pixel.V(windowW, float64(windowH-y)),
+				)
+				im.Rectangle(0)
+			}
+			const groundH = 170
+			groundCenter := pixel.RGB(135/255.0, 33/255.0, 2/255.0)
+			groundEdge := pixel.RGB(95/255.0, 23/255.0, 1/255.0)
+			for y := windowH - groundH; y < windowH; y += h {
+				centerWeight := 1.0 - float64(abs(y-(windowH-groundH/2)))/80.0
+				im.Color = pixel.RGB(
+					groundCenter.R*centerWeight+groundEdge.R*(1-centerWeight),
+					groundCenter.G*centerWeight+groundEdge.G*(1-centerWeight),
+					groundCenter.B*centerWeight+groundEdge.B*(1-centerWeight),
+				)
+				im.Push(
+					pixel.V(0, float64(windowH-y-h)),
+					pixel.V(windowW, float64(windowH-y)),
+				)
+				im.Rectangle(0)
+			}
+			im.Draw(window)
+		*/
 	}
 	// player
 	hero := "hero "
@@ -431,12 +442,6 @@ func (s *playingState) update(window *pixelgl.Window) state {
 		dir = "left"
 	}
 	hero += dir
-	drawAt := func(s *pixel.Sprite, x, y int) {
-		b := s.Picture().Bounds()
-		s.Draw(window, pixel.IM.
-			Moved(pixel.V(float64(x), float64(windowH-y)-b.H())).
-			Moved(b.Center()))
-	}
 	drawAt(s.sprites[hero], s.playerX, s.playerY)
 	if s.shootBan > 0 {
 		head := s.sprites["hero eye blink "+dir]
